@@ -1,89 +1,10 @@
-import { Spring } from "react-spring";
-import { Graphics as PixiGraphics, Texture } from "pixi.js";
-import { Stage, Graphics, Sprite, useTick, Text } from "@inlet/react-pixi";
-import React, { useCallback, useState, useEffect, useMemo } from "react";
-import { Bezier, Point } from "bezier-js";
+import { Fragment, Dispatch, SetStateAction, useEffect } from "react";
+import { BezierExtended, Route, Train } from "./lib";
 
-class BezierExtended extends Bezier {
-  getPointAtDistance(offset: number, epsilon: number = 0.5) {
-    let l = this.length();
-    if (offset < 0) return { point: this.get(0), t: 0 };
-    if (offset > l) return { point: this.get(1), t: 1 };
-    let i = 0,
-      maxIterations = 10;
-    let error = l;
-    let guess = offset / l;
-    while (error > epsilon && i < maxIterations) {
-      let segmentLength = this.split(guess).left.length();
-      error = segmentLength - offset;
-      guess = guess - error / l;
-      i += 1;
-    }
-    return { point: this.get(guess), t: guess };
-  }
-}
+import { Stage } from "@inlet/react-pixi";
 
-class Route {
-  curves: BezierExtended[];
-  listCurveLength: number[];
-
-  constructor(curves: BezierExtended[]) {
-    this.curves = curves;
-    this.listCurveLength = curves.map((curve) => curve.length());
-  }
-
-  append(left: Route) {
-    return new Route([...this.curves, ...left.curves]);
-  }
-}
-
-class Train {
-  route: Route;
-  curveIndex: number;
-  setCurveIndex: React.Dispatch<React.SetStateAction<number>>;
-  curveOffset: number;
-  setCurveOffset: React.Dispatch<React.SetStateAction<number>>;
-
-  constructor(route: Route) {
-    this.route = route;
-    const [curveIndex, setCurveIndex] = useState(0);
-    const [curveOffset, setCurveOffset] = useState(0);
-    this.curveIndex = curveIndex;
-    this.setCurveIndex = setCurveIndex;
-    this.curveOffset = curveOffset;
-    this.setCurveOffset = setCurveOffset;
-  }
-
-  calcTrans(count: number) {
-    if (
-      count >
-      this.curveOffset + this.route.listCurveLength[this.curveIndex]
-    ) {
-      this.setCurveOffset(
-        this.curveOffset + this.route.listCurveLength[this.curveIndex]
-      );
-      this.setCurveIndex((this.curveIndex + 1) % this.route.curves.length);
-    }
-    const { point, t } = this.route.curves[this.curveIndex].getPointAtDistance(
-      count - this.curveOffset
-    );
-
-    const rotation = () => {
-      const point = this.route.curves[this.curveIndex].normal(t);
-
-      if (Math.abs(point.x) < 0.000001) {
-        if (point.y > 0) return Math.PI / 2;
-        else return (Math.PI * 3) / 2;
-      }
-      return Math.atan(point.y / point.x);
-    };
-
-    return {
-      point,
-      rotation: rotation(),
-    };
-  }
-}
+import { useFrameCount } from "./hooks";
+import { DrawLine, DrawTrain } from "./components";
 
 const config = {
   size: { width: 1200, height: 1000 },
@@ -91,90 +12,10 @@ const config = {
   stage: { antialias: true, backgroundColor: 0x333333 },
 };
 
-const useFrameCount = () => {
-  const [frameCount, setFrameCount] = useState(0);
-
-  useTick((delta) => {
-    setFrameCount(frameCount + (16.666666666666 + delta));
-  });
-
-  return frameCount;
-};
-
-const DrawLine = ({ route }: { route: Route }) => {
-  const draw = useCallback((g: PixiGraphics) => {
-    g.clear();
-    route.curves.forEach((curve) => {
-      g.lineStyle(5, 0xadadad, 1);
-      g.moveTo(curve.points[0].x, curve.points[0].y);
-
-      if (curve.points.length == 3) {
-        g.quadraticCurveTo(
-          curve.points[1].x,
-          curve.points[1].y,
-          curve.points[2].x,
-          curve.points[2].y
-        );
-      } else if (curve.points.length == 4) {
-        g.bezierCurveTo(
-          curve.points[1].x,
-          curve.points[1].y,
-          curve.points[2].x,
-          curve.points[2].y,
-          curve.points[3].x,
-          curve.points[3].y
-        );
-      }
-    });
-  }, []);
-
-  return (
-    <>
-      <Graphics draw={draw} />
-    </>
-  );
-};
-
-const DrawTrain = ({
-  frameCount,
-  train,
-}: {
-  frameCount: number;
-  train: Train;
-}) => {
-  const [x, setX] = useState(0);
-  const [y, setY] = useState(0);
-  const [rotation, setRotation] = useState(0);
-
-  useEffect(() => {
-    const { point, rotation: newRotation } = train.calcTrans(frameCount / 5);
-    setX(point.x);
-    setY(point.y);
-    setRotation(newRotation);
-  }, [frameCount]);
-
-  return (
-    <Spring native config={config.spring}>
-      {() => (
-        <Sprite
-          texture={Texture.WHITE}
-          tint={0xd1eaff}
-          anchor={0.5}
-          x={x}
-          y={y}
-          rotation={rotation}
-          width={20}
-          height={40}
-        />
-      )}
-    </Spring>
-  );
-};
-
 const Application = ({
   setFrameCountExternal,
 }: {
-  setFrameCountExternal?: React.Dispatch<React.SetStateAction<number>>;
+  setFrameCountExternal?: Dispatch<SetStateAction<number>>;
 }) => {
   const frameCount = useFrameCount();
 
@@ -292,13 +133,17 @@ const Application = ({
       ))}
       {trains.map((train, index) => {
         return (
-          <React.Fragment key={index}>
+          <Fragment key={index}>
             {offsets.map((offset) => (
-              <React.Fragment key={offset}>
-                <DrawTrain frameCount={frameCount + offset} train={train()} />
-              </React.Fragment>
+              <Fragment key={offset}>
+                <DrawTrain
+                  frameCount={frameCount + offset}
+                  train={train()}
+                  springConfig={config.spring}
+                />
+              </Fragment>
             ))}
-          </React.Fragment>
+          </Fragment>
         );
       })}
     </>
