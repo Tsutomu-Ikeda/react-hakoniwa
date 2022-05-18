@@ -1,15 +1,22 @@
+import { Dispatch, SetStateAction, useState } from "react";
+
 import { Route } from "./route";
-import { useState } from "react";
+import { RouteDecider } from "./route-decider";
 
 export class Train {
   route: Route;
+  routeDecider: RouteDecider;
+  setRoute: Dispatch<SetStateAction<Route>>;
   curveIndex: number;
-  setCurveIndex: React.Dispatch<React.SetStateAction<number>>;
+  setCurveIndex: Dispatch<SetStateAction<number>>;
   curveOffset: number;
-  setCurveOffset: React.Dispatch<React.SetStateAction<number>>;
+  setCurveOffset: Dispatch<SetStateAction<number>>;
 
-  constructor(route: Route) {
-    this.route = route;
+  constructor(route: Route, routeDecider: RouteDecider) {
+    const [routeState, setRoute] = useState(route);
+    this.route = routeState;
+    this.setRoute = setRoute;
+    this.routeDecider = routeDecider;
     const [curveIndex, setCurveIndex] = useState(0);
     const [curveOffset, setCurveOffset] = useState(0);
     this.curveIndex = curveIndex;
@@ -26,7 +33,13 @@ export class Train {
       this.setCurveOffset(
         this.curveOffset + this.route.listCurveLength[this.curveIndex]
       );
-      this.setCurveIndex((this.curveIndex + 1) % this.route.curves.length);
+
+      if (this.curveIndex + 1 < this.route.listCurveLength.length) {
+        this.setCurveIndex(this.curveIndex + 1);
+      } else {
+        this.setRoute(this.routeDecider.next(this.route));
+        this.setCurveIndex(0);
+      }
     }
     const { point, t } = this.route.curves[this.curveIndex].getPointAtDistance(
       count - this.curveOffset

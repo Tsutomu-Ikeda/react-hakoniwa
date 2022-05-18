@@ -1,5 +1,11 @@
-import { Fragment, Dispatch, SetStateAction, useEffect } from "react";
-import { BezierExtended, Route, Train } from "./lib";
+import { useState, Fragment, Dispatch, SetStateAction, useEffect } from "react";
+import {
+  BezierExtended,
+  roundedRectangleRoute,
+  Route,
+  RouteDecider,
+  Train,
+} from "./lib";
 
 import { Stage } from "@inlet/react-pixi";
 
@@ -23,112 +29,56 @@ const Application = ({
     setFrameCountExternal?.(frameCount);
   }, [frameCount]);
 
-  const route0 = () =>
-    new Route([new BezierExtended(280, 225, 280, 260, 310, 290, 310, 325)]);
-  const route1 = () =>
-    new Route([
-      new BezierExtended(310, 325, 310, 575, 310, 725),
+  const [routes, _setRoutes] = useState({
+    "0": new Route([
       new BezierExtended(310, 725, 310, 875, 410, 875),
       new BezierExtended(410, 875, 510, 875, 610, 875),
       new BezierExtended(610, 875, 910, 875, 910, 575),
+    ]),
+    "1": roundedRectangleRoute(250, 50, 380, 1000, 100),
+    "2": new Route([new BezierExtended(250, -500, 260, -200, 280, 225)]),
+    "3": roundedRectangleRoute(600, 25, 550, 800, 150),
+    "4": new Route([new BezierExtended(310, 325, 310, 575, 310, 725)]),
+    "5": new Route([
+      new BezierExtended(310, 725, 310, 760, 280, 790, 280, 825),
+    ]),
+    "6": new Route([
+      new BezierExtended(280, 225, 280, 260, 310, 290, 310, 325),
+    ]),
+    "7": new Route([new BezierExtended(280, 825, 280, 2025, 280, 3225)]),
+    "8": new Route([new BezierExtended(280, 225, 280, 525, 280, 825)]),
+    "9": new Route([
       new BezierExtended(910, 575, 910, 450, 910, 325),
       new BezierExtended(910, 325, 910, 25, 610, 25),
       new BezierExtended(610, 25, 310, 25, 310, 325),
-    ]);
-  const route4 = () =>
-    new Route([new BezierExtended(310, 675, 310, 710, 280, 740, 280, 775)]);
-  const route2 = () =>
-    new Route([
-      new BezierExtended(250, -500, 260, -200, 280, 225),
-      new BezierExtended(280, 225, 280, 675, 280, 1125),
-    ]);
-  const route3 = (
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    radius: number
-  ) =>
-    new Route([
-      new BezierExtended(
-        x + radius,
-        y,
-        x + width / 2,
-        y,
-        x + width - radius,
-        y
-      ),
-      new BezierExtended(
-        x + width - radius,
-        y,
-        x + width,
-        y,
-        x + width,
-        y + radius
-      ),
-      new BezierExtended(
-        x + width,
-        y + radius,
-        x + width,
-        y + height / 2,
-        x + width,
-        y + height - radius
-      ),
-      new BezierExtended(
-        x + width,
-        y + height - radius,
-        x + width,
-        y + height,
-        x + width - radius,
-        y + height
-      ),
-      new BezierExtended(
-        x + width - radius,
-        y + height,
-        x + width / 2,
-        y + height,
-        x + radius,
-        y + height
-      ),
-      new BezierExtended(
-        x + radius,
-        y + height,
-        x,
-        y + height,
-        x,
-        y + height - radius
-      ),
-      new BezierExtended(
-        x,
-        y + height - radius,
-        x,
-        y + height / 2,
-        x,
-        y + radius
-      ),
-      new BezierExtended(x, y + radius, x, y, x + radius, y),
-    ]);
+    ]),
+  });
 
-  const routes = [
-    route1(),
-    route3(250, 50, 380, 1000, 100),
-    route2(),
-    route3(600, 25, 550, 800, 150),
-    route4(),
-    route0(),
-  ];
+  const offsets = [0, 250, 500, 750, 1000, 1250, 1500, 1750];
 
-  const offsets = [0, 250, 500, 750, 1000, 1250];
+  const routeDecider = new RouteDecider({
+    [routes["4"].id]: [routes["0"], routes["5"]],
+    [routes["0"].id]: [routes["9"]],
+    [routes["9"].id]: [routes["4"]],
+    [routes["2"].id]: [routes["8"], routes["6"]],
+    [routes["6"].id]: [routes["4"]],
+    [routes["8"].id]: [routes["7"]],
+    [routes["5"].id]: [routes["7"]],
+    [routes["7"].id]: [routes["2"]],
+    [routes["1"].id]: [routes["1"]],
+    [routes["3"].id]: [routes["3"]],
+  });
 
   const trains = [
-    () => new Train(routes[0]),
-    () => new Train(routes[1]),
-    () => new Train(routes[3]),
-    () => new Train(routes[2]),
+    () => new Train(routes["1"], routeDecider),
+    () => new Train(routes["3"], routeDecider),
+    () => new Train(routes["2"], routeDecider),
+    () => new Train(routes["9"], routeDecider),
   ];
+
   return (
     <>
-      {routes.map((route, index) => (
+      {Object.values(routes).map((route, index) => (
         <DrawLine key={index} route={route} />
       ))}
       {trains.map((train, index) => {
