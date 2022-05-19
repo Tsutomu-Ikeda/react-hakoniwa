@@ -14,7 +14,6 @@ import { DrawLine, DrawTrain } from "./components";
 
 const config = {
   size: { width: 1200, height: 1000 },
-  spring: { mass: 10, tension: 1000, friction: 100 },
   stage: { antialias: true, backgroundColor: 0x333333 },
 };
 
@@ -86,11 +85,7 @@ const Application = ({
           <Fragment key={index}>
             {offsets.map((offset) => (
               <Fragment key={offset}>
-                <DrawTrain
-                  frameCount={frameCount + offset}
-                  train={train()}
-                  springConfig={config.spring}
-                />
+                <DrawTrain frameCount={frameCount + offset} train={train()} />
               </Fragment>
             ))}
           </Fragment>
